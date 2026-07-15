@@ -1,15 +1,15 @@
 # Kruse Consulting — Data / Analytics Engineer (Async Video Screener)
 
-**Format:** 4 questions, self-recorded video answers (phone camera is fine). They explicitly asked for *authentic, not polished* — one take with small stumbles lands better than a memorized script.
+**Format:** one self-recorded video — **2–3 minutes total** covering all four questions — emailed in before the interviews. Phone camera is fine; they explicitly said *no need to make it polished or formal, we're looking for authenticity*. One take with small stumbles lands better than a memorized script.
 
 ---
 
 ## The 4 questions
 
 1. **What specifically interests you about this opportunity?**
-2. **What accomplishment are you most proud of, and why?**
-3. **Tell us about a time you faced unclear requirements — how did you create structure and keep stakeholders aligned?**
-4. **What's a recent industry trend that excites you, and why?**
+2. **What accomplishment are you most proud of and why?**
+3. **Share a brief example of a project where requirements were unclear. How did you create structure, drive progress, and keep stakeholders aligned?**
+4. **What's a recent industry trend that excites you and why?**
 
 ---
 

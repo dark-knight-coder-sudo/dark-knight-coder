@@ -13,9 +13,7 @@ Actually asked:
 - **Why this role, why this organization?**
 - How does your **education align** with this role?
 
-And the curveball: mid-behavioral, the interviewer picked **Azure Data Factory** straight off the resume — *"You've listed ADF — walk me through how you've used it."*
-
-> ⚠️ **The lesson:** at a health system, being unable to answer a listed skill reads as a padded resume, and that impression is fatal. Audit every tool on your resume before submitting — if you can't survive one follow-up deep, cut it. If you have a real gap, volunteer it early with an honest depth statement rather than getting caught.
+Also expect questions pulled **straight from your resume** — even mid-behavioral, the interviewer may pick a listed tool (ADF, Synapse, Spark…) and ask you to walk through how you've used it.
 
 ---
 
