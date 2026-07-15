@@ -1,0 +1,82 @@
+<meta charset="utf-8">
+<title>Post 1 — Google</title>
+<style>body{max-width:740px;margin:40px auto;font:19px/1.6 Georgia,serif;color:#222;padding:0 20px}pre{background:#f4f4f4;padding:14px 16px;font:14px/1.5 Menlo,monospace;overflow-x:auto}h1{line-height:1.2}h2{margin-top:1.6em}code{background:#f4f4f4;font-family:Menlo,monospace;font-size:.85em;padding:1px 5px}</style>
+
+<h1>Google Senior Data Engineer Interview: The Exact Questions From My Live Coding Round</h1>
+
+<p>Field notes from a real Google Senior Data Engineer loop (2026). This was round one — live coding — written down exactly as it was asked, with clean solutions. No 500-question dump, just what actually came up.</p>
+
+<h2>The format</h2>
+
+<p>About 45 minutes in Google's own browser editor — no execution, no autocomplete. One SQL question with a follow-up chain, then one Python question. The interviewer probes <strong>time and space complexity out loud</strong> the entire time. The full loop for this role: SQL + Python coding, then ETL design + ML, then hiring manager.</p>
+
+<h2>SQL: year-over-year revenue change</h2>
+
+<p>Given a table <code>data.revenue</code>:</p>
+
+<pre>customer | year | revenue
+ABC      | 2018 | 100
+ABC      | 2019 | 1000
+ABC      | 2020 | 200
+ABC      | 2021 | 300
+BCD      | 2018 | 11000
+BCD      | 2020 | 72000
+BCD      | 2021 | 300</pre>
+
+<p><strong>Question 1: Calculate the year-over-year % change in revenue for each customer as a new column.</strong></p>
+
+<pre>SELECT customer, year, revenue,
+  (revenue - LAG(revenue) OVER (PARTITION BY customer ORDER BY year)) * 100.0
+    / LAG(revenue) OVER (PARTITION BY customer ORDER BY year) AS yoy_pct_change
+FROM data.revenue;</pre>
+
+<p><strong>Follow-up: BCD is missing 2019. Find the missing years per customer.</strong></p>
+
+<p>Generate the full year range per customer (min to max), then anti-join the actual rows:</p>
+
+<pre>WITH bounds AS (
+  SELECT customer, MIN(year) min_y, MAX(year) max_y
+  FROM data.revenue GROUP BY customer
+),
+expected AS (
+  SELECT b.customer, y.year
+  FROM bounds b
+  JOIN years y ON y.year BETWEEN b.min_y AND b.max_y  -- generated series
+)
+SELECT e.customer, e.year
+FROM expected e
+LEFT JOIN data.revenue r
+  ON r.customer = e.customer AND r.year = e.year
+WHERE r.year IS NULL;</pre>
+
+<p><strong>Follow-up: flag significant outlier changes in the new column — for example, 2x over or under the customer's average change.</strong></p>
+
+<pre>WITH yoy AS ( /* query above */ )
+SELECT customer, pct_change,
+       CASE WHEN ABS(pct_change) > 2 * AVG(ABS(pct_change))
+                 OVER (PARTITION BY customer)
+            THEN 'outlier' END AS flag
+FROM yoy;</pre>
+
+<p>The exact threshold matters less than the reasoning: define a per-customer baseline, then flag deviations beyond a multiple of it.</p>
+
+<h2>Python: anagram check</h2>
+
+<p><strong>Write a function that determines if two given strings are anagrams. Propose and develop different approaches, and explain their time and space complexities.</strong> (Examples given: tar/rat, listen/silent.)</p>
+
+<pre># Approach 1 — sort and compare · O(n log n) time, O(n) space
+def is_anagram(a, b):
+    return sorted(a) == sorted(b)
+
+# Approach 2 — counter · O(n) time, O(k) space
+from collections import Counter
+def is_anagram(a, b):
+    return len(a) == len(b) and Counter(a) == Counter(b)</pre>
+
+<p>They want you to <strong>volunteer</strong> the trade-off — sorting is simpler, counting is asymptotically better and short-circuits on length — not wait to be asked.</p>
+
+<h2>What actually decides this round</h2>
+
+<p>The SQL question is easy. The round is won or lost on the <strong>follow-up chain</strong> — missing years, outliers — and how calmly you extend your first query. And Big-O narration is its own skill: if saying "this is O(n log n) because of the sort, and here's how I'd get to O(n)" doesn't come out naturally while you type, drill it out loud before the interview. It sinks people who can otherwise solve the problem.</p>
+
+<p><em>Part of the Dark Knight Coder field notes — real questions from real data engineering interviews, published anonymously so they help the next person. If this helped, pass it on.</em></p>

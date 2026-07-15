@@ -1,0 +1,107 @@
+<meta charset="utf-8">
+<title>Post 2 — Healthcare DE</title>
+<style>body{max-width:740px;margin:40px auto;font:19px/1.6 Georgia,serif;color:#222;padding:0 20px}pre{background:#f4f4f4;padding:14px 16px;font:14px/1.5 Menlo,monospace;overflow-x:auto}h1{line-height:1.2}h2{margin-top:1.6em}code{background:#f4f4f4;font-family:Menlo,monospace;font-size:.85em;padding:1px 5px}</style>
+
+<h1>Healthcare Data Engineering Interviews: Real Questions From Providence and HCSC</h1>
+
+<p>Field notes from two real healthcare data engineering loops (2026) — a Senior DE role at Providence and a Senior ML Engineer role at HCSC. Written down as asked, with clean solutions. Healthcare loops are practical — SQL, warehousing, pipelines — not algorithm puzzles, and they're winnable on fundamentals.</p>
+
+<h2>Providence — Senior Data Engineer</h2>
+
+<p>Typical loop: recruiter screen, structured behavioral (1 hour on video), coding/technical rounds, managerial, HR. Three to five weeks end to end.</p>
+
+<p><strong>The behavioral round, actually asked:</strong></p>
+
+<ul>
+<li>Tell me about a difficult situation and how you handled it.</li>
+<li>Tell me about a time you helped a team thrive.</li>
+<li>Why this role, why this organization?</li>
+<li>How does your education align with this role?</li>
+</ul>
+
+<p>Also expect questions pulled <strong>straight from your resume</strong> — even mid-behavioral, the interviewer may pick a listed tool (ADF, Synapse, Spark…) and ask you to walk through how you've used it. Know every line you wrote.</p>
+
+<h2>Azure Data Factory — enough to hold the conversation</h2>
+
+<ul>
+<li><strong>The four objects:</strong> pipeline → activity → dataset → linked service. Be able to walk one flow through all four.</li>
+<li><strong>Integration Runtime:</strong> Azure IR (cloud) vs self-hosted IR. Healthcare loves self-hosted because clinical sources sit behind firewalls.</li>
+<li><strong>Triggers:</strong> schedule vs tumbling window — the distinction interviewers reach for. Tumbling windows are stateful, non-overlapping, and support backfill and dependencies.</li>
+<li><strong>The senior-sounding answer:</strong> metadata-driven pipelines — one parameterized pipeline plus a control table, instead of 200 copy-pasted pipelines.</li>
+<li><strong>Incremental loads:</strong> watermark column + lookup activity, idempotent re-runs.</li>
+<li><strong>Security (healthcare will care):</strong> managed identity over connection strings, Key Vault for secrets, private endpoints.</li>
+<li>Comparisons to have ready: ADF vs Synapse pipelines, ADF vs Airflow, ADF vs Databricks workflows.</li>
+</ul>
+
+<h2>Reported Providence technical questions</h2>
+
+<p>From interview-guide sites — indicative, not guaranteed:</p>
+
+<ul>
+<li>Rolling 7-day average of patient admissions (window function).</li>
+<li>Dedupe keeping the latest record — <code>ROW_NUMBER() … ORDER BY updated_at DESC</code>.</li>
+<li>30-day readmission — the healthcare SQL classic (<code>LEAD</code> on admit dates per patient, filter gap ≤ 30 days).</li>
+<li>SCD Type 1 vs Type 2, and when you'd choose each.</li>
+<li>Star vs snowflake schema. CTE vs temp table. ETL vs ELT.</li>
+<li>"An Airflow job failed overnight — walk me through recovery."</li>
+<li>Schema evolution handling. Spark partitioning strategies.</li>
+</ul>
+
+<p>One warning: Glassdoor's "Providence" interview data is polluted by Providence, RI employers and Providence's India campus hiring — different roles, different bar. Filter carefully.</p>
+
+<h2>HCSC — Senior ML Engineer, live coding</h2>
+
+<p>Live coding over video call in a shared editor. SQL first, then Python. LeetCode-easy/medium difficulty, but they watch how you structure and explain. Narrate as you go — silence while typing is the failure mode, not wrong syntax.</p>
+
+<p><strong>SQL: Find the names of employees whose salary is higher than the average salary of departments with more than 3 employees.</strong></p>
+
+<pre>employees(emp_id, name, department_id, salary)
+departments(department_id, dept_name)
+
+WITH dept_stats AS (
+  SELECT department_id, AVG(salary) AS avg_salary
+  FROM employees
+  GROUP BY department_id
+  HAVING COUNT(*) > 3
+)
+SELECT e.name
+FROM employees e
+JOIN dept_stats d ON e.department_id = d.department_id
+WHERE e.salary > d.avg_salary;</pre>
+
+<p>Probed after: why <code>HAVING</code> and not <code>WHERE</code>, and the correlated-subquery alternative vs the CTE.</p>
+
+<p><strong>Python: valid parentheses.</strong> Given a string containing only <code>( ) { } [ ]</code>, determine if it's valid — brackets closed by the same type, in the correct order, every closer has an opener.</p>
+
+<pre>def is_valid(s):
+    pairs = {')': '(', '}': '{', ']': '['}
+    stack = []
+    for ch in s:
+        if ch in pairs:
+            if not stack or stack.pop() != pairs[ch]:
+                return False
+        else:
+            stack.append(ch)
+    return not stack</pre>
+
+<p>O(n) time, O(n) space. Say the invariant out loud: the stack always holds the currently-unclosed openers, innermost on top.</p>
+
+<p><strong>Python: flatten nested JSON</strong> — nested keys join with underscores, so <code>contact.phone.home</code> becomes <code>contact_phone_home</code>.</p>
+
+<pre>def flatten(d, parent="", sep="_"):
+    out = {}
+    for k, v in d.items():
+        key = f"{parent}{sep}{k}" if parent else k
+        if isinstance(v, dict):
+            out.update(flatten(v, key, sep))
+        else:
+            out[key] = v
+    return out</pre>
+
+<p>The most DE-flavored Python question there is — it shows up everywhere. Know the recursive version cold, and expect the follow-up: what about lists inside the JSON? (Index into the key: <code>contact_phones_0</code>.)</p>
+
+<h2>What carries healthcare loops</h2>
+
+<p>Window functions (<code>LAG</code>/<code>LEAD</code>, <code>ROW_NUMBER</code>, rolling averages), the 30-day readmission pattern, SCD types, and honest depth on every tool your resume lists. Domain vocabulary helps too: HL7/FHIR, EHR data, HIPAA handling, claims vs clinical data.</p>
+
+<p><em>Part of the Dark Knight Coder field notes — real questions from real data engineering interviews, published anonymously so they help the next person. If this helped, pass it on.</em></p>

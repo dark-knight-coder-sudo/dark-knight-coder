@@ -1,0 +1,73 @@
+<meta charset="utf-8">
+<title>Post 3 — Take-homes & screeners</title>
+<style>body{max-width:740px;margin:40px auto;font:19px/1.6 Georgia,serif;color:#222;padding:0 20px}pre{background:#f4f4f4;padding:14px 16px;font:14px/1.5 Menlo,monospace;overflow-x:auto}h1{line-height:1.2}h2{margin-top:1.6em}code{background:#f4f4f4;font-family:Menlo,monospace;font-size:.85em;padding:1px 5px}</style>
+
+<h1>Data Engineering Take-Homes and Screeners: What Kohl's, Andela, and a Consulting Firm Actually Graded</h1>
+
+<p>Field notes from three real data engineering screens (2026): a live Python assessment at Kohl's, a client-screening take-home via Andela, and a consulting firm's async video screener. The pattern across all three: <strong>boring correctness wins</strong>. Stdlib, readable, handles the messy rows. Nobody awards points for cleverness.</p>
+
+<h2>Kohl's — live coding, Python, stdlib only</h2>
+
+<p>Plain Python — pandas and numpy explicitly banned, <code>collections</code> and <code>datetime</code> encouraged.</p>
+
+<p><strong>The question:</strong> a flat list holds purchase records — every 4 elements are one transaction: SKU, item description, price (<code>'$10.00'</code>), purchase date (<code>'YYYY-MM-DD'</code>). Print one formatted string: <code>"{most_common_sku} {average_price} {min_date} {max_date}"</code> — the average price of the most common SKU to 2 decimals, plus that SKU's first and last purchase dates.</p>
+
+<pre>purchases = [
+    '123456', 'Nike T-shirt', '$12.65', '2026-01-01',
+    '194850', 'Vans Shoes',   '$89.99', '2026-01-04',
+    # … 10 rows total
+]
+
+def aggregate_purchase_data(data):
+    sku_info = {}
+    for i in range(0, len(data), 4):
+        sku   = data[i]
+        price = float(data[i + 2].replace('$', ''))
+        date  = data[i + 3]
+        info = sku_info.setdefault(sku,
+            {"count": 0, "total": 0.0, "min_date": date, "max_date": date})
+        info["count"] += 1
+        info["total"] += price
+        info["min_date"] = min(info["min_date"], date)
+        info["max_date"] = max(info["max_date"], date)
+
+    top  = max(sku_info, key=lambda s: sku_info[s]["count"])
+    info = sku_info[top]
+    return f"{top} {info['total']/info['count']:.2f} {info['min_date']} {info['max_date']}"</pre>
+
+<p>What they're testing: <strong>stride iteration</strong> over a flat list (<code>range(0, len(data), 4)</code>), string-to-number cleaning, and one-pass aggregation into a dict — <code>GROUP BY</code> in plain Python. The nice catch: ISO dates compare correctly <strong>as strings</strong>, so no datetime parsing is needed — saying that out loud scores points. Useful drill: solve it in SQL first, then translate.</p>
+
+<h2>Andela — client-screening take-home</h2>
+
+<p>Two parts, provided datasets. Graded on <strong>judgment</strong>, not code volume: how you handle nulls, dupes, and join mismatches — and whether you wrote the decisions down.</p>
+
+<p><strong>Part 1 — messy user records.</strong> A spreadsheet of synthetic user records (name, email, two phone columns, address, date of birth), deliberately dirty: missing values in every column, inconsistent phone formats, near-duplicate people. They want a <strong>repeatable cleaning pipeline</strong> — standardize formats, define a dedupe key, decide explicitly what happens to unfixable rows, document every decision. No hand-edits.</p>
+
+<p><strong>Part 2 — usage analytics.</strong> Two CSVs to join on <code>username</code>:</p>
+
+<pre>usage_data.csv: date, username, feature, sessions, time_spent, average_time_spent
+user_data.csv:  first_name, last_name, username, role, region, subscription_plan</pre>
+
+<p>Landmines: <code>subscription_plan</code> has blanks, and the join key only exists cleanly on one side if Part 1 was done right. Typical asks: usage by feature/role/region, free-trial vs paid behavior, most and least engaged segments — presented as <strong>findings, not just tables</strong>. Keep it reproducible: one runnable script or notebook plus a short README of assumptions.</p>
+
+<h2>The async video screener — 4 questions, one take</h2>
+
+<p>A consulting firm's pre-interview step: one self-recorded video, <strong>2–3 minutes total</strong>, covering four questions, emailed in. They explicitly said no need to make it polished or formal — they're looking for authenticity.</p>
+
+<ol>
+<li>What specifically interests you about this opportunity?</li>
+<li>What accomplishment are you most proud of and why?</li>
+<li>Share a brief example of a project where requirements were unclear. How did you create structure, drive progress, and keep stakeholders aligned?</li>
+<li>What's a recent industry trend that excites you and why?</li>
+</ol>
+
+<p>What works, learned by doing it:</p>
+
+<ul>
+<li><strong>Q2 wants one specific, quantifiable story</strong> — a real system, real numbers, three concrete technical decisions. Not a career montage.</li>
+<li><strong>Q3 is a process question in disguise.</strong> The strong shape: the mistake you used to make → the reframe (walk the stakeholder through a real scenario end-to-end, then mirror back your understanding as a diagram) → proof you now reuse that pattern.</li>
+<li><strong>Q4 is a depth check.</strong> Pick a trend you've actually touched and land one non-obvious insight. "AI is exciting" is a zero.</li>
+<li>Mechanics matter: light in front of you, plain background, look at the lens for each answer's open and close. One take with small stumbles lands better than a memorized script.</li>
+</ul>
+
+<p><em>Part of the Dark Knight Coder field notes — real questions from real data engineering interviews, published anonymously so they help the next person. If this helped, pass it on.</em></p>
