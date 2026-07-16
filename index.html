@@ -1,0 +1,362 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dark Knight Coder — Real DE Interview Questions</title>
+<style>
+  :root{
+    --bg:#0b0e14; --bg2:#10141d; --surface:#131926; --surface2:#0a0e16;
+    --line:rgba(240,244,255,.09); --ink:#dde4f0; --ink-dim:#8b96ac; --ink-faint:#5c6678;
+    --gold:#f2b53a; --gold-soft:#f8d284; --steel:#7ea6d9; --ok:#7ec9a2;
+    --mono:ui-monospace,'SF Mono','Cascadia Code',Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 var(--sans);
+    background-image:
+      radial-gradient(1100px 480px at 78% -140px, rgba(242,181,58,.10), transparent 60%),
+      radial-gradient(900px 500px at -10% 12%, rgba(126,166,217,.07), transparent 55%);
+    background-attachment:fixed;
+  }
+  .wrap{max-width:880px;margin:0 auto;padding:0 22px 90px}
+
+  /* hero */
+  header{padding:76px 0 30px}
+  .sig{font:600 .72rem var(--mono);letter-spacing:.22em;color:var(--gold);text-transform:uppercase}
+  h1{
+    margin:.35rem 0 .6rem;font:800 clamp(2.3rem,6vw,3.4rem)/1.05 var(--mono);
+    letter-spacing:-.02em;text-wrap:balance;
+    background:linear-gradient(100deg,#f6f8fc 30%,var(--gold-soft) 70%,var(--gold));
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  }
+  .sub{max-width:56ch;color:var(--ink-dim);margin:0 0 26px}
+  .sub b{color:var(--ink);font-weight:600}
+
+  /* nav */
+  nav{position:sticky;top:0;z-index:9;background:rgba(11,14,20,.86);backdrop-filter:blur(10px);
+      border-block:1px solid var(--line);margin:0 -22px;padding:10px 22px;overflow-x:auto;white-space:nowrap}
+  nav a{
+    display:inline-block;font:600 .72rem var(--mono);letter-spacing:.08em;text-transform:uppercase;
+    color:var(--ink-dim);text-decoration:none;padding:5px 12px;border:1px solid var(--line);
+    border-radius:999px;margin-right:8px;transition:color .15s,border-color .15s;
+  }
+  nav a:hover,nav a:focus-visible{color:var(--gold);border-color:rgba(242,181,58,.45);outline:none}
+
+  /* lessons light card */
+  .paper{
+    background:linear-gradient(160deg,#fdf8ec,#f7edd4);color:#2a2416;border-radius:14px;
+    padding:26px 28px;margin:42px 0 8px;box-shadow:0 0 44px rgba(242,181,58,.16),0 14px 34px rgba(0,0,0,.4);
+  }
+  .paper::before{content:"★ WHAT CARRIES THESE LOOPS";display:block;font:700 .68rem var(--mono);
+    letter-spacing:.16em;color:#9a6d10;margin-bottom:10px}
+  .paper ol{margin:0;padding-left:1.2rem;color:#57503c}
+  .paper li{margin:.45rem 0;color:#57503c}
+  .paper b{color:#161208}
+  .paper i{color:#3c3626}
+  .paper code{background:rgba(122,94,26,.14);color:#6b4e0e}
+
+  /* sections */
+  section{margin-top:64px}
+  .co{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:12px}
+  h2{margin:0;font:750 1.5rem/1.2 var(--mono);letter-spacing:-.01em;color:#f3f6fb}
+  h2 .n{color:var(--gold);font-weight:800}
+  .pill{font:600 .68rem var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--steel);
+        border:1px solid rgba(126,166,217,.3);border-radius:999px;padding:3px 10px}
+  .fmt{color:var(--ink-dim);font-size:.92rem;max-width:64ch;margin:14px 0 0}
+  h3{font:700 1.02rem var(--sans);color:var(--gold-soft);margin:30px 0 8px}
+  p{max-width:66ch}
+  section p{color:var(--ink-dim)}
+  section p b,section li b{color:var(--ink)}
+  ul,ol{padding-left:1.25rem;color:var(--ink-dim)}
+  li{margin:.3rem 0;max-width:62ch}
+  .q{
+    background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--gold);
+    border-radius:0 10px 10px 0;padding:13px 18px;margin:14px 0;color:var(--ink);
+    font-size:.95rem;max-width:none;
+  }
+  .q::before{content:"ASKED";font:700 .62rem var(--mono);letter-spacing:.16em;color:var(--gold);
+    display:block;margin-bottom:4px}
+  pre{
+    background:var(--surface2);border:1px solid var(--line);border-radius:10px;
+    padding:16px 18px;overflow-x:auto;font:.83rem/1.6 var(--mono);color:#c9d4e6;margin:12px 0;
+  }
+  pre .c{color:var(--ink-faint)}
+  pre .k{color:var(--steel)}
+  pre .s{color:var(--gold-soft)}
+  code{font:.86em var(--mono);background:rgba(126,166,217,.12);border-radius:5px;padding:.1em .4em;color:#cfdcf0}
+  pre code{background:none;padding:0;color:inherit}
+
+  table{border-collapse:collapse;width:100%;margin:12px 0;font-size:.9rem;font-variant-numeric:tabular-nums}
+  th{text-align:left;font:700 .68rem var(--mono);letter-spacing:.12em;text-transform:uppercase;
+     color:var(--gold);padding:8px 12px;border-bottom:1px solid rgba(242,181,58,.35)}
+  td{padding:7px 12px;color:var(--ink-dim);border-bottom:1px solid var(--line)}
+  tr:nth-child(even) td{background:rgba(255,255,255,.02)}
+  .tablebox{overflow-x:auto}
+
+  .warn{
+    border:1px dashed rgba(242,181,58,.5);border-radius:12px;padding:14px 18px;margin:16px 0;
+    color:var(--ink);font-size:.94rem;background:rgba(242,181,58,.05);
+  }
+  .warn::before{content:"⚠ WATCH OUT";display:block;font:700 .64rem var(--mono);
+    letter-spacing:.16em;color:var(--gold);margin-bottom:5px}
+
+  .res a{color:var(--steel);text-decoration:underline;text-underline-offset:3px}
+  .res a:hover{color:var(--gold-soft)}
+
+  footer{margin-top:80px;border-top:1px solid var(--line);padding-top:22px;
+    font:.78rem var(--mono);color:var(--ink-faint);letter-spacing:.06em}
+  footer span{color:var(--gold)}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="sig">// field notes · data engineering · 2026</div>
+  <h1>Dark Knight Coder</h1>
+  <p class="sub">Real questions from real <b>senior data engineering interviews</b> — live coding rounds, take-homes, and video screeners, written down exactly as they were asked. No 500-question dumps. Just what came up, how each round ran, and a clean solution where it's code.</p>
+</header>
+
+<nav>
+  <a href="#google">Google</a><a href="#providence">Providence</a><a href="#hcsc">HCSC</a><a href="#kohls">Kohl's</a><a href="#andela">Andela</a><a href="#kruse">Kruse</a><a href="#resources">Resources</a>
+</nav>
+
+<div class="paper">
+  <ol>
+    <li><b>Expect questions straight from your resume.</b> Interviewers pick a listed tool and ask you to walk through it — know every line you wrote.</li>
+    <li><b>Big-O narration is its own skill.</b> Solving the problem isn't enough at top-tier loops — you're expected to <i>talk</i> complexity while you code. Drill it out loud.</li>
+    <li><b>SQL window functions carry senior DE interviews.</b> <code>LAG</code>, <code>ROW_NUMBER</code>, rolling aggregates — they showed up in almost every loop here.</li>
+    <li><b>Take-homes reward boring correctness.</b> Stdlib, readable, handles the messy rows. Nobody awards points for cleverness.</li>
+  </ol>
+</div>
+
+<!-- ============ GOOGLE ============ -->
+<section id="google">
+  <div class="co"><h2><span class="n">01</span> Google</h2><span class="pill">Senior DE</span><span class="pill">Live coding · 45 min</span></div>
+  <p class="fmt">Google's own browser editor — no execution, no autocomplete. One SQL question with a follow-up chain, then one Python question. The interviewer probes <b>time/space complexity out loud</b> the entire time. Loop: ① SQL + Python coding → ② ETL design + ML → ③ hiring manager.</p>
+
+  <h3>SQL — year-over-year revenue change</h3>
+  <p>Given <code>data.revenue</code>:</p>
+  <div class="tablebox"><table>
+    <tr><th>customer</th><th>year</th><th>revenue</th></tr>
+    <tr><td>ABC</td><td>2018</td><td>100</td></tr>
+    <tr><td>ABC</td><td>2019</td><td>1000</td></tr>
+    <tr><td>ABC</td><td>2020</td><td>200</td></tr>
+    <tr><td>ABC</td><td>2021</td><td>300</td></tr>
+    <tr><td>BCD</td><td>2018</td><td>11000</td></tr>
+    <tr><td>BCD</td><td>2020</td><td>72000</td></tr>
+    <tr><td>BCD</td><td>2021</td><td>300</td></tr>
+  </table></div>
+
+  <div class="q">Calculate the year-over-year % change in revenue for each customer as a new column.</div>
+<pre><code><span class="k">SELECT</span> customer, year, revenue,
+  (revenue - <span class="k">LAG</span>(revenue) <span class="k">OVER</span> (<span class="k">PARTITION BY</span> customer <span class="k">ORDER BY</span> year)) * 100.0
+    / <span class="k">LAG</span>(revenue) <span class="k">OVER</span> (<span class="k">PARTITION BY</span> customer <span class="k">ORDER BY</span> year) <span class="k">AS</span> yoy_pct_change
+<span class="k">FROM</span> data.revenue;</code></pre>
+
+  <div class="q">Follow-up — BCD is missing 2019. Find the missing years per customer.</div>
+  <p>Generate the full year range per customer (min→max), then anti-join the actual rows:</p>
+<pre><code><span class="k">WITH</span> bounds <span class="k">AS</span> (
+  <span class="k">SELECT</span> customer, <span class="k">MIN</span>(year) min_y, <span class="k">MAX</span>(year) max_y <span class="k">FROM</span> data.revenue <span class="k">GROUP BY</span> customer
+),
+expected <span class="k">AS</span> (
+  <span class="k">SELECT</span> b.customer, y.year
+  <span class="k">FROM</span> bounds b <span class="k">JOIN</span> years y <span class="k">ON</span> y.year <span class="k">BETWEEN</span> b.min_y <span class="k">AND</span> b.max_y  <span class="c">-- generated series</span>
+)
+<span class="k">SELECT</span> e.customer, e.year
+<span class="k">FROM</span> expected e
+<span class="k">LEFT JOIN</span> data.revenue r <span class="k">ON</span> r.customer = e.customer <span class="k">AND</span> r.year = e.year
+<span class="k">WHERE</span> r.year <span class="k">IS NULL</span>;</code></pre>
+
+  <div class="q">Follow-up — flag significant outlier changes in the new column, e.g. 2× over or under the customer's average change.</div>
+<pre><code><span class="k">WITH</span> yoy <span class="k">AS</span> ( <span class="c">/* query above */</span> )
+<span class="k">SELECT</span> customer, pct_change,
+       <span class="k">CASE WHEN</span> <span class="k">ABS</span>(pct_change) &gt; 2 * <span class="k">AVG</span>(<span class="k">ABS</span>(pct_change))
+                 <span class="k">OVER</span> (<span class="k">PARTITION BY</span> customer)
+            <span class="k">THEN</span> <span class="s">'outlier'</span> <span class="k">END AS</span> flag
+<span class="k">FROM</span> yoy;</code></pre>
+  <p>The exact threshold matters less than the reasoning: define a per-customer baseline, then flag deviations beyond a multiple of it.</p>
+
+  <h3>Python — anagram check</h3>
+  <div class="q">Write a function that determines if two given strings are anagrams. Propose and develop <b>different approaches</b>, and explain their <b>time and space complexities</b>. (Examples: tar/rat, listen/silent.)</div>
+<pre><code><span class="c"># Approach 1 — sort and compare · O(n log n) time, O(n) space</span>
+<span class="k">def</span> is_anagram(a, b):
+    <span class="k">return</span> <span class="k">sorted</span>(a) == <span class="k">sorted</span>(b)
+
+<span class="c"># Approach 2 — counter · O(n) time, O(k) space</span>
+<span class="k">from</span> collections <span class="k">import</span> Counter
+<span class="k">def</span> is_anagram(a, b):
+    <span class="k">return</span> <span class="k">len</span>(a) == <span class="k">len</span>(b) <span class="k">and</span> Counter(a) == Counter(b)</code></pre>
+  <p>They want you to <b>volunteer</b> the trade-off — sorting is simpler, counting is asymptotically better and short-circuits on length — not wait to be asked. The round is won or lost on the follow-up chain and how calmly you extend your first answer.</p>
+</section>
+
+<!-- ============ PROVIDENCE ============ -->
+<section id="providence">
+  <div class="co"><h2><span class="n">02</span> Providence</h2><span class="pill">Senior DE · Healthcare</span><span class="pill">Behavioral + technical</span></div>
+  <p class="fmt">Typical loop: recruiter screen → structured behavioral (1 hr video) → coding/technical → managerial → HR, 3–5 weeks end to end. Rounds are <b>practical</b> — SQL, warehousing, pipelines — not algorithm puzzles.</p>
+
+  <h3>Behavioral round — actually asked</h3>
+  <ul>
+    <li>Tell me about a <b>difficult situation</b> and how you handled it.</li>
+    <li>Tell me about a time you <b>helped a team thrive</b>.</li>
+    <li><b>Why this role, why this organization?</b></li>
+    <li>How does your <b>education align</b> with this role?</li>
+  </ul>
+  <p>Also expect questions pulled <b>straight from your resume</b> — even mid-behavioral, the interviewer may pick a listed tool (ADF, Synapse, Spark…) and ask you to walk through how you've used it.</p>
+
+  <h3>ADF — enough to hold the conversation</h3>
+  <ul>
+    <li><b>The four objects:</b> pipeline → activity → dataset → linked service. Walk one flow through all four.</li>
+    <li><b>Integration Runtime:</b> Azure IR (cloud) vs self-hosted IR — healthcare loves self-hosted because clinical sources sit behind firewalls.</li>
+    <li><b>Triggers:</b> schedule vs <b>tumbling window</b> — the distinction interviewers reach for. Tumbling windows are stateful, non-overlapping, support backfill and dependencies.</li>
+    <li><b>The senior answer:</b> metadata-driven pipelines — one parameterized pipeline + a control table, not 200 copy-pasted ones.</li>
+    <li><b>Incremental loads:</b> watermark column + lookup activity, idempotent re-runs.</li>
+    <li><b>Security:</b> managed identity over connection strings, Key Vault for secrets, private endpoints.</li>
+    <li>Comparisons to have ready: ADF vs Synapse pipelines · ADF vs Airflow · ADF vs Databricks workflows.</li>
+  </ul>
+
+  <h3>Reported technical questions <span style="font-weight:400;color:var(--ink-faint)">(from interview-guide sites — indicative, not guaranteed)</span></h3>
+  <ul>
+    <li>Rolling <b>7-day average of patient admissions</b> (window function).</li>
+    <li><b>Dedupe keeping the latest record</b> — <code>ROW_NUMBER() … ORDER BY updated_at DESC</code>.</li>
+    <li><b>30-day readmission</b> — the healthcare SQL classic (<code>LEAD</code> on admit dates per patient, filter gap ≤ 30 days).</li>
+    <li>SCD Type 1 vs Type 2, and when you'd choose each.</li>
+    <li>Star vs snowflake schema · CTE vs temp table · ETL vs ELT.</li>
+    <li>"An Airflow job failed overnight — walk me through recovery."</li>
+    <li>Schema evolution handling · Spark partitioning strategies.</li>
+  </ul>
+  <div class="warn">Glassdoor's "Providence" interview data is polluted by Providence, RI employers and Providence's India campus hiring — different roles, different bar. Filter carefully before trusting it.</div>
+</section>
+
+<!-- ============ HCSC ============ -->
+<section id="hcsc">
+  <div class="co"><h2><span class="n">03</span> HCSC</h2><span class="pill">Senior MLE</span><span class="pill">Live coding</span></div>
+  <p class="fmt">Live coding over video call in a shared editor — SQL first, then Python. LeetCode-easy/medium difficulty, but they watch how you structure and explain. Narrate as you go: silence while typing is the failure mode, not wrong syntax.</p>
+
+  <h3>SQL — salary above department average</h3>
+  <div class="q">Find the names of employees whose salary is higher than the average salary of departments with more than 3 employees.</div>
+<pre><code>employees(emp_id, name, department_id, salary)
+departments(department_id, dept_name)
+
+<span class="k">WITH</span> dept_stats <span class="k">AS</span> (
+  <span class="k">SELECT</span> department_id, <span class="k">AVG</span>(salary) avg_salary
+  <span class="k">FROM</span> employees
+  <span class="k">GROUP BY</span> department_id
+  <span class="k">HAVING COUNT</span>(*) &gt; 3
+)
+<span class="k">SELECT</span> e.name
+<span class="k">FROM</span> employees e
+<span class="k">JOIN</span> dept_stats d <span class="k">ON</span> e.department_id = d.department_id
+<span class="k">WHERE</span> e.salary &gt; d.avg_salary;</code></pre>
+  <p>Probed after: why <code>HAVING</code> not <code>WHERE</code>, and the correlated-subquery alternative vs the CTE.</p>
+
+  <h3>Python — valid parentheses</h3>
+  <div class="q">Given a string containing only <code>( ) { } [ ]</code>, determine if it's valid: brackets closed by the same type, in the correct order, every closer has an opener.</div>
+<pre><code><span class="k">def</span> is_valid(s):
+    pairs = {<span class="s">')'</span>: <span class="s">'('</span>, <span class="s">'}'</span>: <span class="s">'{'</span>, <span class="s">']'</span>: <span class="s">'['</span>}
+    stack = []
+    <span class="k">for</span> ch <span class="k">in</span> s:
+        <span class="k">if</span> ch <span class="k">in</span> pairs:
+            <span class="k">if not</span> stack <span class="k">or</span> stack.pop() != pairs[ch]:
+                <span class="k">return</span> <span class="k">False</span>
+        <span class="k">else</span>:
+            stack.append(ch)
+    <span class="k">return not</span> stack</code></pre>
+  <p>O(n) time, O(n) space. Say the invariant out loud: <b>the stack always holds the currently-unclosed openers, innermost on top.</b></p>
+
+  <h3>Python — flatten nested JSON</h3>
+  <div class="q">Flatten the given JSON — nested keys join with underscores: <code>contact.phone.home</code> → <code>contact_phone_home</code>.</div>
+<pre><code><span class="k">def</span> flatten(d, parent=<span class="s">""</span>, sep=<span class="s">"_"</span>):
+    out = {}
+    <span class="k">for</span> k, v <span class="k">in</span> d.items():
+        key = <span class="s">f"{parent}{sep}{k}"</span> <span class="k">if</span> parent <span class="k">else</span> k
+        <span class="k">if</span> <span class="k">isinstance</span>(v, <span class="k">dict</span>):
+            out.update(flatten(v, key, sep))
+        <span class="k">else</span>:
+            out[key] = v
+    <span class="k">return</span> out</code></pre>
+  <p>The most DE-flavored Python question there is — it shows up everywhere. Know the recursive version cold, and expect the follow-up: <b>what about lists inside the JSON?</b> (Index into the key: <code>contact_phones_0</code>.)</p>
+</section>
+
+<!-- ============ KOHLS ============ -->
+<section id="kohls">
+  <div class="co"><h2><span class="n">04</span> Kohl's</h2><span class="pill">Data Engineer</span><span class="pill">Live coding · Python</span></div>
+  <p class="fmt">Plain Python, <b>stdlib only</b> — pandas/numpy explicitly banned, <code>collections</code>/<code>datetime</code> encouraged.</p>
+
+  <div class="q">A flat list holds purchase records — every 4 elements are one transaction: SKU, item description, price (<code>'$10.00'</code>), purchase date (<code>'YYYY-MM-DD'</code>). Print one formatted string: <code>"{most_common_sku} {average_price} {min_date} {max_date}"</code> — average price of the most common SKU to 2 decimals, plus that SKU's first and last purchase dates.</div>
+<pre><code>purchases = [
+    <span class="s">'123456'</span>, <span class="s">'Nike T-shirt'</span>, <span class="s">'$12.65'</span>, <span class="s">'2026-01-01'</span>,
+    <span class="s">'194850'</span>, <span class="s">'Vans Shoes'</span>,   <span class="s">'$89.99'</span>, <span class="s">'2026-01-04'</span>,
+    <span class="c"># … 10 rows total</span>
+]
+
+<span class="k">def</span> aggregate_purchase_data(data):
+    sku_info = {}
+    <span class="k">for</span> i <span class="k">in</span> <span class="k">range</span>(0, <span class="k">len</span>(data), 4):
+        sku   = data[i]
+        price = <span class="k">float</span>(data[i + 2].replace(<span class="s">'$'</span>, <span class="s">''</span>))
+        date  = data[i + 3]
+        info = sku_info.setdefault(sku,
+            {<span class="s">"count"</span>: 0, <span class="s">"total"</span>: 0.0, <span class="s">"min_date"</span>: date, <span class="s">"max_date"</span>: date})
+        info[<span class="s">"count"</span>] += 1
+        info[<span class="s">"total"</span>] += price
+        info[<span class="s">"min_date"</span>] = <span class="k">min</span>(info[<span class="s">"min_date"</span>], date)
+        info[<span class="s">"max_date"</span>] = <span class="k">max</span>(info[<span class="s">"max_date"</span>], date)
+
+    top  = <span class="k">max</span>(sku_info, key=<span class="k">lambda</span> s: sku_info[s][<span class="s">"count"</span>])
+    info = sku_info[top]
+    <span class="k">return</span> <span class="s">f"{top} {info['total']/info['count']:.2f} {info['min_date']} {info['max_date']}"</span></code></pre>
+  <p>What they're testing: <b>stride iteration</b> over a flat list, string→number cleaning, and one-pass aggregation into a dict — <code>GROUP BY</code> in plain Python. The nice catch: ISO dates compare correctly <b>as strings</b>, so no <code>datetime</code> parsing needed — saying that out loud scores points. Useful drill: solve it in SQL first, then translate.</p>
+</section>
+
+<!-- ============ ANDELA ============ -->
+<section id="andela">
+  <div class="co"><h2><span class="n">05</span> Andela</h2><span class="pill">DE · Client screening</span><span class="pill">Take-home</span></div>
+  <p class="fmt">Take-home with provided datasets, two parts. Graded on <b>judgment</b>, not code volume: how you handle nulls, dupes, and join mismatches — and whether you wrote the decisions down.</p>
+
+  <h3>Part 1 — messy user records</h3>
+  <p>A spreadsheet of synthetic user records (<code>first_name, last_name, email, home_phone, mobile_phone, street_address, city, state, postal_code, date_of_birth</code>), deliberately dirty: missing values in every column, inconsistent phone formats, near-duplicate people. They want a <b>repeatable cleaning pipeline</b> — standardize formats, define a dedupe key, decide explicitly what happens to unfixable rows, document every decision.</p>
+
+  <h3>Part 2 — usage analytics</h3>
+  <p>Two CSVs to join on <code>username</code>:</p>
+<pre><code>usage_data.csv: date, username, feature, sessions, time_spent, average_time_spent
+user_data.csv:  first_name, last_name, username, role, region, subscription_plan</code></pre>
+  <p>Landmines: <code>subscription_plan</code> has blanks, and the join key only exists cleanly on one side if Part 1 was done right. Typical asks: usage by feature/role/region, free-trial vs paid behavior, most and least engaged segments — presented as <b>findings, not just tables</b>. Keep it boring and reproducible: one runnable script or notebook plus a short README of assumptions.</p>
+</section>
+
+<!-- ============ KRUSE ============ -->
+<section id="kruse">
+  <div class="co"><h2><span class="n">06</span> Kruse Consulting</h2><span class="pill">Data / Analytics Eng</span><span class="pill">Async video screener</span></div>
+  <p class="fmt">One self-recorded video — <b>2–3 minutes total</b> covering all four questions — emailed in before the interviews. Phone camera is fine; they explicitly said <b>no need to make it polished or formal, they're looking for authenticity</b>. One take with small stumbles lands better than a memorized script.</p>
+
+  <div class="q">1 · What specifically interests you about this opportunity?<br>2 · What accomplishment are you most proud of and why?<br>3 · Share a brief example of a project where requirements were unclear. How did you create structure, drive progress, and keep stakeholders aligned?<br>4 · What's a recent industry trend that excites you and why?</div>
+
+  <ul>
+    <li><b>Q2 wants one specific, quantifiable story</b> — a real system, real numbers, three concrete technical decisions. Not a career montage.</li>
+    <li><b>Q3 is a process question in disguise.</b> Strong shape: the mistake you used to make → the reframe (walk the stakeholder through a real scenario end-to-end, mirror back your understanding as a diagram) → proof you reuse that pattern now.</li>
+    <li><b>Q4 is a depth check.</b> Pick a trend you've actually touched and land one non-obvious insight. "AI is exciting" is a zero.</li>
+    <li>Mechanics matter: light in front of you, plain background, look at the lens for each answer's open and close.</li>
+  </ul>
+</section>
+
+<!-- ============ RESOURCES ============ -->
+<section id="resources" class="res">
+  <div class="co"><h2><span class="n">07</span> Resources</h2><span class="pill">Curated</span></div>
+  <p class="fmt">The ones that actually helped prep for the loops above.</p>
+  <ul>
+    <li><a href="https://www.dataford.io" rel="noopener">Dataford</a> — Providence DE loop structure and question themes.</li>
+    <li><a href="https://www.interviewquery.com" rel="noopener">InterviewQuery</a> — practical SQL/pipeline question bank per company.</li>
+    <li><a href="https://www.glassdoor.com" rel="noopener">Glassdoor</a> — interview reviews (see the pollution warning above).</li>
+    <li><a href="https://www.datacamp.com/blog/azure-data-factory-interview-questions" rel="noopener">DataCamp — ADF interview questions</a> — the pipeline/activity/dataset/linked-service model and IR types.</li>
+    <li><a href="https://www.interviewbit.com/azure-data-factory-interview-questions/" rel="noopener">InterviewBit — ADF interview questions</a> — triggers and incremental-load patterns.</li>
+  </ul>
+  <h3>The drill list that pays off across every DE loop</h3>
+  <ul>
+    <li>Window functions: <code>LAG</code>/<code>LEAD</code>, <code>ROW_NUMBER</code>, rolling averages, dedupe-keep-latest.</li>
+    <li>The healthcare classic: 30-day readmission.</li>
+    <li>Python: flatten nested JSON, anagrams, valid parentheses, stride iteration — with big-O narration out loud.</li>
+    <li>Concepts: SCD1 vs SCD2, star vs snowflake, CTE vs temp table, ETL vs ELT, schema evolution, Spark partitioning, "your overnight job failed — recover."</li>
+  </ul>
+</section>
+
+<footer>published anonymously · <span>if it helped, pass it on</span> 🦇</footer>
+</div>
