@@ -14,6 +14,7 @@ Everything here was actually asked in a live interview, take-home, or video scre
 | [Kohl's](kohls/README.md) | Data Engineer | Live coding (Python) | Purchase data aggregation, stdlib only |
 | [Andela](andela/README.md) | Data Engineer (client screening) | Take-home | Messy user records + usage analytics |
 | [Kruse Consulting](kruse-consulting/README.md) | Data / Analytics Engineer | Async video screener | The 4 recorded questions |
+| [Beacon Hill (Disney)](beacon-hill/README.md) | Data Engineer | Coding + verbal technical | Powers of 2, bank-account tally, Delta tuning, ETL data quality |
 
 ## What carries these loops (the short version)
 

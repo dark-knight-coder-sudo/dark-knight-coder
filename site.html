@@ -117,7 +117,7 @@
 </header>
 
 <nav>
-  <a href="#google">Google</a><a href="#providence">Providence</a><a href="#hcsc">HCSC</a><a href="#kohls">Kohl's</a><a href="#andela">Andela</a><a href="#kruse">Kruse</a><a href="#resources">Resources</a>
+  <a href="#google">Google</a><a href="#providence">Providence</a><a href="#hcsc">HCSC</a><a href="#kohls">Kohl's</a><a href="#andela">Andela</a><a href="#kruse">Kruse</a><a href="#beacon">Beacon Hill</a><a href="#resources">Resources</a>
 </nav>
 
 <div class="paper">
@@ -338,9 +338,66 @@ user_data.csv:  first_name, last_name, username, role, region, subscription_plan
   </ul>
 </section>
 
+<!-- ============ BEACON HILL ============ -->
+<section id="beacon">
+  <div class="co"><h2><span class="n">07</span> Beacon Hill</h2><span class="pill">DE · Disney client</span><span class="pill">Coding + verbal</span></div>
+  <p class="fmt">A timed coding assessment (stdin/stdout, multiple test cases per input — CodeSignal-style), then a verbal technical round talking through scenarios on a ~3-minute clock.</p>
+
+  <h3>Coding — Exponents of 2</h3>
+  <div class="q">Input: first line is <code>T</code>. Each of the next <code>T</code> lines is a number. Print <code>1</code> if it's a power of two, else <code>0</code>.</div>
+  <p>The catch: inputs can be non-integers, and the intended definition accepts fractional powers (<code>0.5</code>, <code>0.25</code>) since halving/doubling reaches exactly <code>1.0</code>. Anything <code>≤ 0</code> is <code>0</code>.</p>
+<pre><code><span class="k">import</span> sys
+<span class="k">def</span> is_power_of_two(n):
+    <span class="k">if</span> n &lt;= 0: <span class="k">return</span> <span class="k">False</span>
+    <span class="k">while</span> n &gt; 1: n /= 2
+    <span class="k">while</span> n &lt; 1: n *= 2
+    <span class="k">return</span> n == 1.0
+
+data = sys.stdin.read().split(<span class="s">'\n'</span>)
+t = <span class="k">int</span>(data[0])
+out = [<span class="s">'1'</span> <span class="k">if</span> is_power_of_two(<span class="k">float</span>(data[i])) <span class="k">else</span> <span class="s">'0'</span> <span class="k">for</span> i <span class="k">in</span> <span class="k">range</span>(1, t + 1)]
+<span class="k">print</span>(<span class="s">'\n'</span>.join(out))</code></pre>
+  <p>For integers only, the one-liner is <code>n &gt; 0 and (n &amp; (n - 1)) == 0</code> — worth saying out loud even if the float version is what the tests require.</p>
+
+  <h3>Coding — Sorting Bank Accounts</h3>
+  <div class="q">Per test case: an integer <code>N</code>, then <code>N</code> account strings. Print each <b>unique account</b> with its count, <b>sorted by account number</b>. Blank line separates cases.</div>
+<pre><code><span class="k">import</span> sys
+<span class="k">from</span> collections <span class="k">import</span> Counter
+
+data = sys.stdin.read().split(<span class="s">'\n'</span>)
+idx = 0
+t = <span class="k">int</span>(data[idx].strip()); idx += 1
+blocks = []
+<span class="k">for</span> _ <span class="k">in</span> <span class="k">range</span>(t):
+    n = <span class="k">int</span>(data[idx].strip()); idx += 1
+    accounts = [data[idx + j].strip() <span class="k">for</span> j <span class="k">in</span> <span class="k">range</span>(n)]
+    idx += n
+    <span class="k">if</span> idx &lt; <span class="k">len</span>(data) <span class="k">and</span> data[idx].strip() == <span class="s">''</span>: idx += 1  <span class="c"># separator</span>
+    counts = Counter(accounts)
+    blocks.append(<span class="s">'\n'</span>.join(<span class="s">f"{a} {counts[a]}"</span> <span class="k">for</span> a <span class="k">in</span> <span class="k">sorted</span>(counts)))
+<span class="k">print</span>(<span class="s">'\n\n'</span>.join(blocks))</code></pre>
+  <p>What it tests: careful <b>index-based stdin parsing</b> with a variable number of lines per case, <code>Counter</code> for the tally, <code>sorted()</code> on the keys for ordering.</p>
+
+  <h3>Verbal round — reported scenarios</h3>
+  <div class="q">In an ETL process, what's a common method for handling data quality issues during the transformation phase?</div>
+  <p>Validate on the way through and <b>quarantine, don't drop</b>: schema/type and constraint checks (not-null, ranges, referential) applied as data transforms; route failing rows to a <b>dead-letter / reject table</b> with the reason attached instead of silently discarding; standardize and de-dupe; emit <b>DQ metrics</b> (rows in vs out, % rejected, null rates) so regressions are visible. Tools named: dbt tests, Great Expectations, rule tables.</p>
+
+  <div class="q">A 2-TB Delta table partitioned by <code>event_date</code> has slow reads and high cost. In 3 minutes, describe the exact sequence of Databricks actions to diagnose and fix it.</div>
+  <ol>
+    <li><b>Diagnose first</b> — Spark UI / query profile, then <code>DESCRIBE DETAIL</code> for <code>numFiles</code> and size (→ avg file size) and partition skew. Slow partitioned reads are almost always the <b>small-file problem</b>.</li>
+    <li><b>Compact</b> — <code>OPTIMIZE</code> toward the ~128 MB–1 GB target; enable auto-optimize / optimizeWrite so it stays compacted.</li>
+    <li><b>Z-ORDER</b> on high-cardinality columns in your <code>WHERE</code>/join predicates (not the partition column) — that's what enables data-skipping.</li>
+    <li><b>Reclaim safely</b> — <code>VACUUM</code> old files but keep the default 7-day retention; never <code>RETAIN 0</code> on a live table (breaks time-travel and concurrent readers).</li>
+    <li><b>Compute</b> — turn on <b>Photon</b>, right-size + autoscale the cluster, use Delta caching for hot reads.</li>
+    <li><b>Query side</b> — push <code>event_date</code> predicates for partition pruning, select only needed columns, broadcast small dimension joins.</li>
+    <li><b>Rethink layout</b> — if <code>event_date</code> makes tiny partitions, coarsen to month + Z-ORDER, or use liquid clustering.</li>
+  </ol>
+  <p>The framing that scores: <b>diagnose → compact → cluster → reclaim → tune compute → fix the query → rethink layout.</b> Naming the file-size target and the VACUUM-retention safety note is what separates a senior answer from a keyword list.</p>
+</section>
+
 <!-- ============ RESOURCES ============ -->
 <section id="resources" class="res">
-  <div class="co"><h2><span class="n">07</span> Resources</h2><span class="pill">Curated</span></div>
+  <div class="co"><h2><span class="n">08</span> Resources</h2><span class="pill">Curated</span></div>
   <p class="fmt">The ones that actually helped prep for the loops above.</p>
   <ul>
     <li><a href="https://www.dataford.io" rel="noopener">Dataford</a> — Providence DE loop structure and question themes.</li>
