@@ -117,7 +117,7 @@
 </header>
 
 <nav>
-  <a href="#google">Google</a><a href="#providence">Providence</a><a href="#hcsc">HCSC</a><a href="#kohls">Kohl's</a><a href="#andela">Andela</a><a href="#kruse">Kruse</a><a href="#beacon">Beacon Hill</a><a href="#resources">Resources</a>
+  <a href="#google">Google</a><a href="#providence">Providence</a><a href="#hcsc">HCSC</a><a href="#kohls">Kohl's</a><a href="#andela">Andela</a><a href="#kruse">Kruse</a><a href="#beacon">Beacon Hill</a><a href="#airbnb">Airbnb</a><a href="#resources">Resources</a>
 </nav>
 
 <div class="paper">
@@ -395,9 +395,87 @@ blocks = []
   <p>The framing that scores: <b>diagnose → compact → cluster → reclaim → tune compute → fix the query → rethink layout.</b> Naming the file-size target and the VACUUM-retention safety note is what separates a senior answer from a keyword list.</p>
 </section>
 
+<!-- ============ AIRBNB ============ -->
+<section id="airbnb">
+  <div class="co"><h2><span class="n">08</span> Airbnb</h2><span class="pill">Data Engineer</span><span class="pill">CodeSignal · 5 Qs · 60 min</span></div>
+  <p class="fmt">Timed CodeSignal screen, proctored — four SQL questions (MySQL 8, inside a <code>CREATE PROCEDURE solution()</code> wrapper) and one Python. All SQL questions share two tables: <code>user_booking(reservation_id, guest_id, listing_id, destination, ts_booking, ds_booking)</code> and <code>users(guest_id, ts_account_created, ds_account_created, origin)</code>. <b>origin</b> lives on users, <b>destination</b> on bookings.</p>
+
+  <h3>Q1 — Top origin→destination pair</h3>
+  <div class="q">Return the origin-destination combination that had the most bookings, along with the booking count.</div>
+<pre><code><span class="k">SELECT</span> u.origin, ub.destination, <span class="k">COUNT</span>(*) <span class="k">AS</span> cnt
+<span class="k">FROM</span> user_booking ub
+<span class="k">JOIN</span> users u <span class="k">ON</span> u.guest_id = ub.guest_id
+<span class="k">GROUP BY</span> u.origin, ub.destination
+<span class="k">ORDER BY</span> cnt <span class="k">DESC</span>
+<span class="k">LIMIT</span> 1;</code></pre>
+  <p>The trap: ordering by <code>origin, destination</code> instead of the <b>count</b> returns an alphabetical pair — graded wrong even though the query looks fine. <code>ORDER BY</code> must express the question.</p>
+
+  <h3>Q2 — Guests whose first booking was NYC</h3>
+  <div class="q">Find the number of guests whose first booking was for NYC.</div>
+<pre><code><span class="k">WITH</span> first_booking <span class="k">AS</span> (
+  <span class="k">SELECT</span> guest_id, destination,
+         <span class="k">ROW_NUMBER</span>() <span class="k">OVER</span> (<span class="k">PARTITION BY</span> guest_id <span class="k">ORDER BY</span> ts_booking) <span class="k">AS</span> rn
+  <span class="k">FROM</span> user_booking
+)
+<span class="k">SELECT COUNT</span>(*) <span class="k">AS</span> guests
+<span class="k">FROM</span> first_booking
+<span class="k">WHERE</span> rn = 1 <span class="k">AND</span> destination = <span class="s">'NYC'</span>;</code></pre>
+
+  <h3>Q3 — Listings whose first booking was by a first-time guest</h3>
+  <div class="q">Find the number of listings whose first booking was by a first-time guest.</div>
+  <p>Two "firsts" at once — rank the same rows two ways and require both:</p>
+<pre><code><span class="k">WITH</span> ranked <span class="k">AS</span> (
+  <span class="k">SELECT</span> listing_id, guest_id,
+         <span class="k">ROW_NUMBER</span>() <span class="k">OVER</span> (<span class="k">PARTITION BY</span> listing_id <span class="k">ORDER BY</span> ts_booking) <span class="k">AS</span> listing_rn,
+         <span class="k">ROW_NUMBER</span>() <span class="k">OVER</span> (<span class="k">PARTITION BY</span> guest_id  <span class="k">ORDER BY</span> ts_booking) <span class="k">AS</span> guest_rn
+  <span class="k">FROM</span> user_booking
+)
+<span class="k">SELECT COUNT</span>(*) <span class="k">AS</span> listings
+<span class="k">FROM</span> ranked
+<span class="k">WHERE</span> listing_rn = 1 <span class="k">AND</span> guest_rn = 1;</code></pre>
+  <p>Worth memorizing: any <b>"first A that was also a first B"</b> question is one CTE with two windows.</p>
+
+  <h3>Q4 — Median nightly price per market (SQL)</h3>
+  <div class="q">Table <code>listing_price(listing_id, market, nightly_price)</code>. Find the median nightly price per market (odd count per market guaranteed).</div>
+<pre><code><span class="k">WITH</span> ranked <span class="k">AS</span> (
+  <span class="k">SELECT</span> market, nightly_price,
+         <span class="k">ROW_NUMBER</span>() <span class="k">OVER</span> (<span class="k">PARTITION BY</span> market <span class="k">ORDER BY</span> nightly_price) <span class="k">AS</span> rn,
+         <span class="k">COUNT</span>(*)     <span class="k">OVER</span> (<span class="k">PARTITION BY</span> market)                        <span class="k">AS</span> cnt
+  <span class="k">FROM</span> listing_price
+)
+<span class="k">SELECT</span> market, nightly_price <span class="k">AS</span> median_nightly_price
+<span class="k">FROM</span> ranked
+<span class="k">WHERE</span> rn = (cnt + 1) / 2
+<span class="k">ORDER BY</span> median_nightly_price <span class="k">DESC</span>;</code></pre>
+  <p><b>Graded literally:</b> the expected column was <code>median_nightly_price</code> in a specific row order — a working median aliased <code>median_price</code> still fails the diff. Copy the expected names exactly before writing the query.</p>
+
+  <h3>Q5 — Median per market, in Python</h3>
+  <div class="q">Input lines like <code>San Francisco,100</code>, grouped by market. Produce lines like <code>San Francisco,150</code> — median per market, in first-appearance order; even-count groups average the two middle values.</div>
+<pre><code><span class="k">def</span> solution(arg1):
+    data, order = {}, []
+    <span class="k">for</span> line <span class="k">in</span> arg1:
+        market, price = line.rsplit(<span class="s">","</span>, 1)
+        <span class="k">if</span> market <span class="k">not in</span> data:
+            data[market] = []
+            order.append(market)
+        data[market].append(<span class="k">int</span>(price))
+
+    out = []
+    <span class="k">for</span> market <span class="k">in</span> order:
+        prices = <span class="k">sorted</span>(data[market])
+        n = <span class="k">len</span>(prices)
+        median = prices[n // 2] <span class="k">if</span> n % 2 <span class="k">else</span> (prices[n // 2 - 1] + prices[n // 2]) / 2
+        <span class="k">if</span> median == <span class="k">int</span>(median): median = <span class="k">int</span>(median)
+        out.append(<span class="s">f"{market},{median}"</span>)
+    <span class="k">return</span> out</code></pre>
+  <p><b>The gotcha that scored 0/2 with correct logic:</b> the harness expects the function to <b>return</b> the list — printing gives <code>Your return value: null</code> on every test. Read the contract before the algorithm. Also preserve first-appearance order and format whole medians as integers.</p>
+
+  <p><b>Takeaway:</b> one schema, five questions — the whole screen is window-function reps, and <b>the grader is a string diff</b>. Aliases, row order, return-vs-print, and integer formatting cost more points than SQL logic.</p>
+</section>
+
 <!-- ============ RESOURCES ============ -->
 <section id="resources" class="res">
-  <div class="co"><h2><span class="n">08</span> Resources</h2><span class="pill">Curated</span></div>
+  <div class="co"><h2><span class="n">09</span> Resources</h2><span class="pill">Curated</span></div>
   <p class="fmt">The ones that actually helped prep for the loops above.</p>
   <ul>
     <li><a href="https://www.dataford.io" rel="noopener">Dataford</a> — Providence DE loop structure and question themes.</li>

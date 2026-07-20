@@ -1,0 +1,80 @@
+<meta charset="utf-8">
+<title>Post 4 — Beacon Hill / Disney</title>
+<style>body{max-width:740px;margin:40px auto;font:19px/1.6 Georgia,serif;color:#222;padding:0 20px}pre{background:#f4f4f4;padding:14px 16px;font:14px/1.5 Menlo,monospace;overflow-x:auto}h1{line-height:1.2}h2{margin-top:1.6em}code{background:#f4f4f4;font-family:Menlo,monospace;font-size:.85em;padding:1px 5px}</style>
+
+<h1>A Disney Data Engineer Screen: Two Coding Problems and Two Questions You Answer on a Timer</h1>
+
+<p>Field notes from a real Data Engineer screen for a Disney role via a staffing firm (2026). Two parts: a timed coding assessment (stdin/stdout, multiple test cases per input), then a verbal technical round where you talk through scenarios on a roughly 3-minute clock. Everything below was actually asked.</p>
+
+<h2>Coding — Exponents of 2</h2>
+
+<p><strong>Input: first line is T, the number of test cases. Each of the next T lines is a number. For each, print 1 if it is a power of two, else 0.</strong></p>
+
+<p>The catch: inputs can be non-integers, and the intended definition accepts fractional powers too (0.5, 0.25), since halving or doubling reaches exactly 1.0. Anything ≤ 0 is 0.</p>
+
+<pre>import sys
+
+def is_power_of_two(n: float) -> bool:
+    if n <= 0:
+        return False
+    while n > 1:
+        n /= 2
+    while n < 1:
+        n *= 2
+    return n == 1.0
+
+data = sys.stdin.read().split('\n')
+t = int(data[0])
+out = ['1' if is_power_of_two(float(data[i])) else '0' for i in range(1, t + 1)]
+print('\n'.join(out))</pre>
+
+<p>For integers only, the one-liner is <code>n > 0 and (n & (n - 1)) == 0</code> — worth saying out loud even when the float version is what the tests require.</p>
+
+<h2>Coding — Sorting Bank Accounts</h2>
+
+<p><strong>For each test case: an integer N, then N account-number strings. Print each unique account with its count, sorted by account number. A blank line separates test cases.</strong></p>
+
+<pre>import sys
+from collections import Counter
+
+data = sys.stdin.read().split('\n')
+idx = 0
+t = int(data[idx].strip()); idx += 1
+blocks = []
+for _ in range(t):
+    n = int(data[idx].strip()); idx += 1
+    accounts = [data[idx + j].strip() for j in range(n)]
+    idx += n
+    if idx < len(data) and data[idx].strip() == '':   # skip separator
+        idx += 1
+    counts = Counter(accounts)
+    blocks.append('\n'.join(f"{acct} {counts[acct]}" for acct in sorted(counts)))
+print('\n\n'.join(blocks))</pre>
+
+<p>What it tests: careful index-based stdin parsing with a variable number of lines per case, <code>Counter</code> for the tally, and <code>sorted()</code> on the keys for the required ordering.</p>
+
+<h2>Verbal: the ETL data-quality question</h2>
+
+<p><strong>"In an ETL process, what is a common method for handling data quality issues during the transformation phase?"</strong></p>
+
+<p>The answer that lands: validate on the way through and <strong>quarantine, don't drop</strong>. Schema/type checks and constraint rules (not-null, ranges, referential integrity) applied as the data transforms; failing rows routed to a <strong>dead-letter or reject table</strong> with the failure reason attached, instead of being silently discarded; standardization and dedupe; and data-quality metrics (rows in vs out, percent rejected, null rates) emitted so a regression is visible. Name a tool or two — dbt tests, Great Expectations, or hand-rolled rule tables.</p>
+
+<h2>Verbal: the Delta-table tuning question</h2>
+
+<p><strong>"A 2-TB Delta table partitioned by event_date has slow reads and high cost. In 3 minutes, describe the exact sequence of Databricks actions you'd take to diagnose and improve performance and cost."</strong> (Hints offered: file sizes, small files, Z-ORDER targets, VACUUM/retention safety, Photon, caching, autoscaling, query-side techniques.)</p>
+
+<p>A sequence that hits every hint:</p>
+
+<ol>
+<li><strong>Diagnose first.</strong> Spark UI / query profile for the slow query, then <code>DESCRIBE DETAIL</code> for numFiles and total size — that gives average file size — plus a look at partition skew. Slow reads on a partitioned table are almost always the <strong>small-file problem</strong>.</li>
+<li><strong>Compact.</strong> <code>OPTIMIZE</code> to coalesce small files toward the ~128 MB–1 GB target; enable auto-optimize / optimizeWrite so it stays compacted.</li>
+<li><strong>Z-ORDER</strong> on the high-cardinality columns that actually appear in WHERE/join predicates — not the partition column. That's what turns full scans into data skipping.</li>
+<li><strong>Reclaim safely.</strong> <code>VACUUM</code> old files but keep the default 7-day retention — never <code>RETAIN 0 HOURS</code> on a live table; it breaks time travel and concurrent readers.</li>
+<li><strong>Engine and compute.</strong> Photon for vectorized execution; right-size the cluster with autoscaling; Delta caching for hot repeated reads.</li>
+<li><strong>Query side.</strong> Push event_date predicates so partition pruning kicks in, select only needed columns, broadcast small dimension joins.</li>
+<li><strong>Rethink the layout.</strong> If event_date produces tiny partitions, coarsen to month plus Z-ORDER — or move to liquid clustering.</li>
+</ol>
+
+<p>The framing that scores: <strong>diagnose → compact → cluster → reclaim → tune compute → fix the query → rethink layout.</strong> Naming the file-size target and the VACUUM-retention safety note is what separates a senior answer from a keyword list.</p>
+
+<p><em>Part of the Dark Knight Coder field notes — real questions from real data engineering interviews, published anonymously so they help the next person. Full collection on GitHub: <a href="https://github.com/dark-knight-coder-sudo/dark-knight-coder">github.com/dark-knight-coder-sudo/dark-knight-coder</a>. If this helped, pass it on.</em></p>

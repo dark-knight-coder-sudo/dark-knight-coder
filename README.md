@@ -15,6 +15,7 @@ Everything here was actually asked in a live interview, take-home, or video scre
 | [Andela](andela/README.md) | Data Engineer (client screening) | Take-home | Messy user records + usage analytics |
 | [Kruse Consulting](kruse-consulting/README.md) | Data / Analytics Engineer | Async video screener | The 4 recorded questions |
 | [Beacon Hill (Disney)](beacon-hill/README.md) | Data Engineer | Coding + verbal technical | Powers of 2, bank-account tally, Delta tuning, ETL data quality |
+| [Airbnb](airbnb/README.md) | Data Engineer | CodeSignal (SQL + Python) | Top origin-destination, first-booking windows, median per market |
 
 ## What carries these loops (the short version)
 

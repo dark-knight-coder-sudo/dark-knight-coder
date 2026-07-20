@@ -1,0 +1,112 @@
+<meta charset="utf-8">
+<title>Post 5 — Airbnb</title>
+<style>body{max-width:740px;margin:40px auto;font:19px/1.6 Georgia,serif;color:#222;padding:0 20px}pre{background:#f4f4f4;padding:14px 16px;font:14px/1.5 Menlo,monospace;overflow-x:auto}h1{line-height:1.2}h2{margin-top:1.6em}code{background:#f4f4f4;font-family:Menlo,monospace;font-size:.85em;padding:1px 5px}</style>
+
+<h1>Airbnb Data Engineer Screen: All 5 CodeSignal Questions, and the Grader Traps That Cost More Than SQL</h1>
+
+<p>Field notes from a real Airbnb Data Engineer CodeSignal screen (2026). Roughly 60 minutes, proctored, five questions: four SQL (MySQL 8, written inside a <code>CREATE PROCEDURE solution()</code> wrapper) and one Python. Every question below was actually on the test, with clean solutions — and the grader traps, which is where the points actually went.</p>
+
+<h2>The shared schema</h2>
+
+<p>All the SQL questions use the same two tables, so read them once:</p>
+
+<pre>user_booking(reservation_id, guest_id, listing_id, destination, ts_booking, ds_booking)
+users(guest_id, ts_account_created, ds_account_created, origin)</pre>
+
+<p><code>origin</code> lives on <strong>users</strong> (where the guest is from); <code>destination</code> lives on <strong>user_booking</strong> (where the listing is). Every question turns on joining or windowing these correctly.</p>
+
+<h2>Q1 — Top origin→destination pair</h2>
+
+<p><strong>Return the origin-destination combination that had the most bookings, along with the booking count.</strong></p>
+
+<pre>SELECT u.origin, ub.destination, COUNT(*) AS cnt
+FROM user_booking ub
+JOIN users u ON u.guest_id = ub.guest_id
+GROUP BY u.origin, ub.destination
+ORDER BY cnt DESC
+LIMIT 1;</pre>
+
+<p>The trap: <code>ORDER BY origin, destination</code> with <code>LIMIT 1</code> returns an alphabetical pair, not the top pair — marked wrong even though the query "looks" right. The ORDER BY must express the question.</p>
+
+<h2>Q2 — Guests whose first booking was NYC</h2>
+
+<p><strong>Find the number of guests whose first booking was for NYC.</strong></p>
+
+<pre>WITH first_booking AS (
+  SELECT guest_id, destination,
+         ROW_NUMBER() OVER (PARTITION BY guest_id ORDER BY ts_booking) AS rn
+  FROM user_booking
+)
+SELECT COUNT(*) AS guests
+FROM first_booking
+WHERE rn = 1 AND destination = 'NYC';</pre>
+
+<h2>Q3 — Listings whose first booking was by a first-time guest</h2>
+
+<p><strong>Find the number of listings whose first booking was by a first-time guest.</strong></p>
+
+<p>Two "firsts" at once — rank the same rows two ways and require both:</p>
+
+<pre>WITH ranked AS (
+  SELECT listing_id, guest_id,
+         ROW_NUMBER() OVER (PARTITION BY listing_id ORDER BY ts_booking) AS listing_rn,
+         ROW_NUMBER() OVER (PARTITION BY guest_id  ORDER BY ts_booking) AS guest_rn
+  FROM user_booking
+)
+SELECT COUNT(*) AS listings
+FROM ranked
+WHERE listing_rn = 1 AND guest_rn = 1;</pre>
+
+<p>Worth memorizing: any "first A that was also a first B" question is one CTE with two window functions.</p>
+
+<h2>Q4 — Median nightly price per market (SQL)</h2>
+
+<p><strong>Table <code>listing_price(listing_id, market, nightly_price)</code>. Find the median nightly price per market. You may assume an odd number of listings per market.</strong></p>
+
+<pre>WITH ranked AS (
+  SELECT market, nightly_price,
+         ROW_NUMBER() OVER (PARTITION BY market ORDER BY nightly_price) AS rn,
+         COUNT(*)     OVER (PARTITION BY market)                        AS cnt
+  FROM listing_price
+)
+SELECT market, nightly_price AS median_nightly_price
+FROM ranked
+WHERE rn = (cnt + 1) / 2
+ORDER BY median_nightly_price DESC;</pre>
+
+<p>Graded literally: the expected output named the column <code>median_nightly_price</code> in a specific row order. A working median aliased <code>median_price</code> still fails the diff. Copy the expected column names exactly <em>before</em> writing the query.</p>
+
+<h2>Q5 — Median per market, in Python</h2>
+
+<p><strong>Input lines look like <code>San Francisco,100</code>, grouped by market. Compute the median nightly price per market and produce lines like <code>San Francisco,150</code> — in the order markets first appear. Even-count groups average the two middle values.</strong></p>
+
+<pre>def solution(arg1):
+    data, order = {}, []
+    for line in arg1:
+        market, price = line.rsplit(",", 1)
+        if market not in data:
+            data[market] = []
+            order.append(market)
+        data[market].append(int(price))
+
+    out = []
+    for market in order:
+        prices = sorted(data[market])
+        n = len(prices)
+        median = prices[n // 2] if n % 2 else (prices[n // 2 - 1] + prices[n // 2]) / 2
+        if median == int(median):
+            median = int(median)
+        out.append(f"{market},{median}")
+    return out</pre>
+
+<p>The gotcha that scored 0/2 with correct logic: the harness expects the function to <strong>return</strong> the list of strings — printing to stdout gives "Your return value: null" on every test. Read the harness contract before the algorithm. Also: preserve first-appearance order of markets (don't sort them), and format whole medians as integers (150, not 150.0).</p>
+
+<h2>Takeaways</h2>
+
+<ul>
+<li>One schema, five questions — invest the first two minutes reading it properly and the rest of the test is window-function reps: <code>ROW_NUMBER</code> for "first X per Y", rank-vs-count for medians.</li>
+<li><strong>The grader is a string diff.</strong> Column aliases, row order, return-vs-print, and integer formatting cost more points than SQL logic does.</li>
+<li>The double-ROW_NUMBER trick (Q3) generalizes: any "first A that was also a first B" is one CTE with two windows.</li>
+</ul>
+
+<p><em>Part of the Dark Knight Coder field notes — real questions from real data engineering interviews, published anonymously so they help the next person. Full collection on GitHub: <a href="https://github.com/dark-knight-coder-sudo/dark-knight-coder">github.com/dark-knight-coder-sudo/dark-knight-coder</a>. If this helped, pass it on.</em></p>
