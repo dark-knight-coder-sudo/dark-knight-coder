@@ -33,6 +33,109 @@
 <li>Comparisons to have ready: ADF vs Synapse pipelines, ADF vs Airflow, ADF vs Databricks workflows.</li>
 </ul>
 
+<h2>Providence live coding — the actual questions (EMR / lab / genomics)</h2>
+
+<p>This is what was really asked in the coding round, on real healthcare schemas. The SQL half uses two tables: <code>ORDER_RESULT</code> (one row per lab result — <code>patientid, encounter_id, order_id, result_time, external_name, ord_num_value</code>) and <code>PATIENT_ENCOUNTERS</code> (<code>patientid, encounter_id, encounter_type, contact_date</code>).</p>
+
+<p><strong>1.1 — Display the unique lab test names.</strong></p>
+
+<pre>SELECT DISTINCT external_name FROM ORDER_RESULT;</pre>
+
+<p><strong>1.2 — Average WBC result per patient.</strong></p>
+
+<pre>SELECT patientid, AVG(ord_num_value) AS avg_wbc
+FROM ORDER_RESULT
+WHERE external_name = 'WBC'
+GROUP BY patientid
+ORDER BY patientid;</pre>
+
+<p><strong>1.3 — Identify patients with Pancytopenia</strong> (abnormally low red cells, white cells, and platelets, all at once): Hgb/Hemoglobin &lt; 8.0, Platelet Count &lt; 50, WBC ≤ 2.0.</p>
+
+<p>The pattern: pivot lab rows into columns with conditional aggregation, then require all three in <code>HAVING</code> so they co-occur for the same patient and encounter.</p>
+
+<pre>SELECT patientid, encounter_id
+FROM ORDER_RESULT
+GROUP BY patientid, encounter_id
+HAVING MAX(CASE WHEN external_name IN ('Hgb','Hemoglobin') THEN ord_num_value END) &lt; 8.0
+   AND MAX(CASE WHEN external_name = 'Platelet Count'       THEN ord_num_value END) &lt; 50
+   AND MAX(CASE WHEN external_name = 'WBC'                  THEN ord_num_value END) &lt;= 2.0
+ORDER BY patientid;</pre>
+
+<p><strong>1.4 — Same-day readmissions.</strong> From <code>PATIENT_ENCOUNTERS</code> (one row per encounter), find patients with multiple inpatient admissions on the same day.</p>
+
+<pre>SELECT patientid, DATE(contact_date) AS admit_day, COUNT(*) AS admissions
+FROM PATIENT_ENCOUNTERS
+WHERE encounter_type = 'Inpatient'
+GROUP BY patientid, DATE(contact_date)
+HAVING COUNT(*) &gt; 1;</pre>
+
+<p><strong>1.5 — All labs for one patient's inpatient encounter on a date.</strong> For <code>patientid = 'CBC1301104124'</code>, find all lab orders during the inpatient encounter on 2020-10-20.</p>
+
+<pre>SELECT o.patientid, o.order_id, o.encounter_id, o.result_time,
+       o.external_name, o.ord_num_value
+FROM ORDER_RESULT o
+JOIN PATIENT_ENCOUNTERS e ON o.encounter_id = e.encounter_id
+WHERE o.patientid = 'CBC1301104124'
+  AND e.encounter_type = 'Inpatient'
+  AND DATE(e.contact_date) = '2020-10-20';</pre>
+
+<h2>Biomarker data mart — the design and ops questions</h2>
+
+<p>The <code>BIOMARKER</code> table holds gene-sequencing order information. These are talk-through-it questions, not SQL:</p>
+
+<ul>
+<li><strong>A customer says they see no genomic data from a given lab (Caris) in the last two weeks — confirm it.</strong> Count orders per day per lab over the trailing ~60 days and show the last 14 are zero, or far below that lab's normal daily volume. Confirm it's lab-specific (others still flowing) and check raw ingestion counts against the mart to separate a source-side gap from a pipeline bug. One <code>GROUP BY lab, order_date</code> with a baseline comparison settles it.</li>
+<li><strong>How do you communicate the issue?</strong> Acknowledge scope and impact to the customer, open an incident, notify the vendor contact and downstream consumers, give an ETA and a workaround, then follow up with root cause and prevention. The point they probe: structured, proactive comms — not silence until it's fixed.</li>
+<li><strong>Add six more labs to the pipeline — design a scalable architecture and give a backlog with dependencies.</strong> Go metadata-driven (config per lab), not six copy-pasted pipelines: one parameterized ingestion framework, a config table per lab, a normalization layer to a canonical biomarker schema, and per-lab data-quality checks. Backlog: (1) inventory the six labs' formats and delivery methods, which blocks everything; (2) design the canonical schema and mapping config; (3) build the parameterized ingestion and normalization framework; (4) onboard labs one at a time via config; (5) per-lab DQ rules and volume-drop alerting — which makes the first question automatically detectable; (6) backfill, reconciliation, and cutover.</li>
+</ul>
+
+<h2>Providence Python round — free-text clinical NLP</h2>
+
+<p>Three questions on a <code>patients_nlp.json</code> file, where each patient record has a free-text <code>note</code> field.</p>
+
+<p><strong>Q1 — Parse the JSON and find NSCLC (Non-Small Cell Lung Cancer) patients from the note text.</strong> The subtlety that makes this more than a substring search: "small cell lung cancer" is contained inside "non-small cell lung cancer", so you check the NSCLC pattern first and require the <code>non-</code> prefix or the NSCLC acronym.</p>
+
+<pre>import json, re
+
+with open('patients_nlp.json') as f:
+    patients = json.load(f)
+
+NSCLC = re.compile(r'\bNSCLC\b|non[-\s]?small[-\s]cell\s+lung', re.I)
+SCLC  = re.compile(r'\bSCLC\b|small[-\s]cell\s+lung', re.I)
+
+def classify(note):
+    if NSCLC.search(note):
+        return 'NSCLC'
+    if SCLC.search(note):     # reached only if not NSCLC — "non-small" already excluded
+        return 'SCLC'
+    return None
+
+nsclc = [p for p in patients if classify(p['note']) == 'NSCLC']
+print([p.get('patient_id', p) for p in nsclc])</pre>
+
+<p><strong>Q2 — Separate NSCLC and SCLC patients into two groups.</strong></p>
+
+<pre>groups = {'NSCLC': [], 'SCLC': []}
+for p in patients:
+    label = classify(p['note'])
+    if label:
+        groups[label].append(p)</pre>
+
+<p><strong>Q3 — The note also holds vitals. Extract resting heart rate and find the mean resting heart rate of NSCLC patients.</strong></p>
+
+<pre>HR = re.compile(r'resting\s+heart\s+rate[:\s]*?(\d+)', re.I)
+
+rates = []
+for p in groups['NSCLC']:
+    m = HR.search(p['note'])
+    if m:
+        rates.append(int(m.group(1)))
+
+mean_hr = sum(rates) / len(rates) if rates else 0
+print(f"Mean resting HR (NSCLC): {mean_hr:.1f}")</pre>
+
+<p>What the Python half tests: JSON parsing, careful regex on messy clinical free text — the NSCLC-vs-SCLC ordering trap is the whole point of Q1 and Q2 — and a guarded aggregation for the mean.</p>
+
 <h2>Reported Providence technical questions</h2>
 
 <p>From interview-guide sites — indicative, not guaranteed:</p>

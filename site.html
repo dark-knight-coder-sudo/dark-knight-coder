@@ -214,6 +214,80 @@ expected <span class="k">AS</span> (
     <li>Comparisons to have ready: ADF vs Synapse pipelines · ADF vs Airflow · ADF vs Databricks workflows.</li>
   </ul>
 
+  <h3>Live coding round — the actual questions (EMR / lab / genomics)</h3>
+  <p>What was really asked, on real healthcare schemas. The SQL half uses <code>ORDER_RESULT</code> (one row per lab result: <code>patientid, encounter_id, order_id, result_time, external_name, ord_num_value</code>) and <code>PATIENT_ENCOUNTERS</code> (<code>patientid, encounter_id, encounter_type, contact_date</code>).</p>
+
+  <div class="q">1.1 · Display the unique lab test names.</div>
+<pre><code><span class="k">SELECT DISTINCT</span> external_name <span class="k">FROM</span> ORDER_RESULT;</code></pre>
+
+  <div class="q">1.2 · Average WBC result per patient.</div>
+<pre><code><span class="k">SELECT</span> patientid, <span class="k">AVG</span>(ord_num_value) <span class="k">AS</span> avg_wbc
+<span class="k">FROM</span> ORDER_RESULT
+<span class="k">WHERE</span> external_name = <span class="s">'WBC'</span>
+<span class="k">GROUP BY</span> patientid <span class="k">ORDER BY</span> patientid;</code></pre>
+
+  <div class="q">1.3 · Identify patients with Pancytopenia — all three low at once: Hgb/Hemoglobin &lt; 8.0, Platelet Count &lt; 50, WBC ≤ 2.0.</div>
+  <p>Pivot lab rows into columns with conditional aggregation, then require all three in <code>HAVING</code>:</p>
+<pre><code><span class="k">SELECT</span> patientid, encounter_id
+<span class="k">FROM</span> ORDER_RESULT
+<span class="k">GROUP BY</span> patientid, encounter_id
+<span class="k">HAVING</span> <span class="k">MAX</span>(<span class="k">CASE WHEN</span> external_name <span class="k">IN</span> (<span class="s">'Hgb'</span>,<span class="s">'Hemoglobin'</span>) <span class="k">THEN</span> ord_num_value <span class="k">END</span>) &lt; 8.0
+   <span class="k">AND</span> <span class="k">MAX</span>(<span class="k">CASE WHEN</span> external_name = <span class="s">'Platelet Count'</span>       <span class="k">THEN</span> ord_num_value <span class="k">END</span>) &lt; 50
+   <span class="k">AND</span> <span class="k">MAX</span>(<span class="k">CASE WHEN</span> external_name = <span class="s">'WBC'</span>                  <span class="k">THEN</span> ord_num_value <span class="k">END</span>) &lt;= 2.0
+<span class="k">ORDER BY</span> patientid;</code></pre>
+
+  <div class="q">1.4 · Same-day readmissions — patients with multiple inpatient admissions on one day.</div>
+<pre><code><span class="k">SELECT</span> patientid, <span class="k">DATE</span>(contact_date) <span class="k">AS</span> admit_day, <span class="k">COUNT</span>(*) <span class="k">AS</span> admissions
+<span class="k">FROM</span> PATIENT_ENCOUNTERS
+<span class="k">WHERE</span> encounter_type = <span class="s">'Inpatient'</span>
+<span class="k">GROUP BY</span> patientid, <span class="k">DATE</span>(contact_date)
+<span class="k">HAVING</span> <span class="k">COUNT</span>(*) &gt; 1;</code></pre>
+
+  <div class="q">1.5 · All lab orders for patient <code>CBC1301104124</code> during the inpatient encounter on 2020-10-20.</div>
+<pre><code><span class="k">SELECT</span> o.patientid, o.order_id, o.encounter_id, o.result_time,
+       o.external_name, o.ord_num_value
+<span class="k">FROM</span> ORDER_RESULT o
+<span class="k">JOIN</span> PATIENT_ENCOUNTERS e <span class="k">ON</span> o.encounter_id = e.encounter_id
+<span class="k">WHERE</span> o.patientid = <span class="s">'CBC1301104124'</span>
+  <span class="k">AND</span> e.encounter_type = <span class="s">'Inpatient'</span>
+  <span class="k">AND</span> <span class="k">DATE</span>(e.contact_date) = <span class="s">'2020-10-20'</span>;</code></pre>
+
+  <h3>Biomarker data mart — design / ops discussion</h3>
+  <p>The <code>BIOMARKER</code> table holds gene-sequencing orders. Talk-through-it questions:</p>
+  <ul>
+    <li><b>A customer sees no genomic data from a given lab (Caris) in the last two weeks — confirm it.</b> Count orders per day per lab over the trailing ~60 days and show the last 14 are zero (or far below that lab's normal volume); confirm it's lab-specific and check raw ingestion counts vs the mart to tell source-side from pipeline-side. One <code>GROUP BY lab, order_date</code> with a baseline comparison settles it.</li>
+    <li><b>How do you communicate the issue?</b> Acknowledge scope + impact to the customer, open an incident, notify the vendor contact and downstream consumers, give an ETA/workaround, then follow up with root cause and prevention. They're probing structured, proactive comms — not silence until fixed.</li>
+    <li><b>Add six more labs to the pipeline — design it, give a backlog with dependencies.</b> Go metadata-driven (config per lab), not six copy-pasted pipelines: one parameterized ingestion framework + a config table + a normalization layer to a canonical schema + per-lab DQ. Backlog: (1) inventory the six labs' formats → (2) canonical schema + mapping config → (3) parameterized ingestion/normalization framework → (4) onboard labs via config → (5) per-lab DQ + volume-drop alerting (this makes the first question auto-detectable) → (6) backfill + reconciliation + cutover.</li>
+  </ul>
+
+  <h3>Python round — free-text clinical NLP</h3>
+  <p>Three questions on <code>patients_nlp.json</code>, each patient a record with a free-text <code>note</code>. The trap: <b>"small cell lung cancer" is a substring of "non-small cell lung cancer"</b> — check NSCLC first.</p>
+  <div class="q">Q1 · Find NSCLC patients from the note text. &nbsp; Q2 · Separate NSCLC and SCLC. &nbsp; Q3 · Extract resting heart rate, find the mean for NSCLC patients.</div>
+<pre><code><span class="k">import</span> json, re
+
+<span class="k">with</span> <span class="k">open</span>(<span class="s">'patients_nlp.json'</span>) <span class="k">as</span> f:
+    patients = json.load(f)
+
+NSCLC = re.compile(<span class="s">r'\bNSCLC\b|non[-\s]?small[-\s]cell\s+lung'</span>, re.I)
+SCLC  = re.compile(<span class="s">r'\bSCLC\b|small[-\s]cell\s+lung'</span>, re.I)
+
+<span class="k">def</span> classify(note):
+    <span class="k">if</span> NSCLC.search(note): <span class="k">return</span> <span class="s">'NSCLC'</span>
+    <span class="k">if</span> SCLC.search(note):  <span class="k">return</span> <span class="s">'SCLC'</span>   <span class="c"># only if not NSCLC — "non-small" excluded</span>
+    <span class="k">return</span> <span class="k">None</span>
+
+groups = {<span class="s">'NSCLC'</span>: [], <span class="s">'SCLC'</span>: []}
+<span class="k">for</span> p <span class="k">in</span> patients:
+    label = classify(p[<span class="s">'note'</span>])
+    <span class="k">if</span> label: groups[label].append(p)
+
+HR = re.compile(<span class="s">r'resting\s+heart\s+rate[:\s]*?(\d+)'</span>, re.I)
+rates = [<span class="k">int</span>(m.group(1)) <span class="k">for</span> p <span class="k">in</span> groups[<span class="s">'NSCLC'</span>]
+         <span class="k">if</span> (m := HR.search(p[<span class="s">'note'</span>]))]
+mean_hr = <span class="k">sum</span>(rates) / <span class="k">len</span>(rates) <span class="k">if</span> rates <span class="k">else</span> 0
+<span class="k">print</span>(<span class="s">f"Mean resting HR (NSCLC): {mean_hr:.1f}"</span>)</code></pre>
+  <p>What the Python half tests: JSON parsing, careful <b>regex on messy clinical free text</b> (the NSCLC-vs-SCLC ordering trap is the whole point), and a guarded aggregation for the mean.</p>
+
   <h3>Reported technical questions <span style="font-weight:400;color:var(--ink-faint)">(from interview-guide sites — indicative, not guaranteed)</span></h3>
   <ul>
     <li>Rolling <b>7-day average of patient admissions</b> (window function).</li>
